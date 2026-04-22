@@ -1,160 +1,151 @@
---[[
-    PREMIUM V13 - FINAL BUG-FREE EDITION
-    - Fix: Erro de Nil Value ao morrer
-    - Fix: Conflito de animação ao voar
-    - Fix: Multi-instância (Script não acumula memória)
---]]
+--[[ 
+    FTF ELITE V9.0 - COMPETITIVE EDITION
+    - Insta-Hack & Fast Action
+    - Speed Boost
+    - Anti-Camera Shake
+    - ESP Pro
+]]
 
--- Limpeza de instâncias antigas (Evita que o menu duplique se você re-executar)
-local oldUI = game:GetService("CoreGui"):FindFirstChild("PremiumV13_Final")
-if oldUI then oldUI:Destroy() end
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Main = Instance.new("Frame", ScreenGui)
+local ScrollingFrame = Instance.new("ScrollingFrame", Main)
+local UIListLayout = Instance.new("UIListLayout", ScrollingFrame)
+local Title = Instance.new("TextLabel", Main)
 
-local Library = Instance.new("ScreenGui")
-Library.Name = "PremiumV13_Final"
-Library.Parent = game:GetService("CoreGui")
-Library.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Design Moderno Carbono
+Main.Size = UDim2.new(0, 230, 0, 350)
+Main.Position = UDim2.new(0.05, 0, 0.3, 0)
+Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Draggable = true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 
-local lp = game.Players.LocalPlayer
-local runService = game:GetService("RunService")
-local cam = workspace.CurrentCamera
+local Stroke = Instance.new("UIStroke", Main)
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(255, 50, 50) -- Cor de alerta/besta
 
--- Variáveis Globais Protegidas
-_G.Fly = false
-_G.FlySpeed = 60
-_G.AutoInteract = false
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.Text = "FTF ELITE V9.0"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.BackgroundTransparency = 1
 
--- [ INTERFACE DESIGN ]
-local MainFrame = Instance.new("Frame", Library)
-MainFrame.Size = UDim2.new(0, 280, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -200)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MainFrame.BorderSizePixel = 0
-MainFrame.Visible = false
-MainFrame.Active = true
-MainFrame.Draggable = true
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -65)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 55)
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.ScrollBarThickness = 0
+UIListLayout.Padding = UDim.new(0, 8)
 
--- Botão de Abrir (Mobile Friendly)
-local ToggleBtn = Instance.new("TextButton", Library)
-ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleBtn.Position = UDim2.new(0.02, 0, 0.4, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-ToggleBtn.Text = "P"
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 25
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
-ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+_G.Config = {
+    Pessoas = false,
+    Besta = false,
+    PCs = false,
+    Speed = false,
+    InstaInteracao = false,
+    NoShake = false
+}
 
--- [ SISTEMA DE SCROLL OTIMIZADO ]
-local Scroll = Instance.new("ScrollingFrame", MainFrame)
-Scroll.Size = UDim2.new(1, -20, 1, -20)
-Scroll.Position = UDim2.new(0, 10, 0, 10)
-Scroll.BackgroundTransparency = 1
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- Auto ajustável
-Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Scroll.ScrollBarThickness = 2
+local function NewButton(txt, var)
+    local b = Instance.new("TextButton", ScrollingFrame)
+    b.Size = UDim2.new(1, 0, 0, 45)
+    b.Text = txt
+    b.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    b.TextColor3 = Color3.fromRGB(200, 200, 200)
+    b.Font = Enum.Font.GothamSemibold
+    b.TextSize = 13
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
 
-local Layout = Instance.new("UIListLayout", Scroll)
-Layout.Padding = UDim.new(0, 8)
-Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
--- [ VELOCIDADE COM FILTRO DE ERRO ]
-local SpeedBox = Instance.new("TextBox", Scroll)
-SpeedBox.Size = UDim2.new(0.9, 0, 0, 45)
-SpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-SpeedBox.Text = "VELOCIDADE: 60"
-SpeedBox.TextColor3 = Color3.fromRGB(0, 255, 150)
-SpeedBox.Font = Enum.Font.GothamBold
-Instance.new("UICorner", SpeedBox)
-
-SpeedBox.FocusLost:Connect(function()
-    local input = SpeedBox.Text:match("%d+") -- Filtra apenas números
-    if input then
-        _G.FlySpeed = math.clamp(tonumber(input), 1, 500) -- Limite de segurança
-        SpeedBox.Text = "VELOCIDADE: " .. _G.FlySpeed
-    else
-        SpeedBox.Text = "VELOCIDADE: 60"
-    end
-end)
-
--- [ FUNÇÃO DE BOTÃO ROBUSTA ]
-local function AddBtn(text, callback)
-    local b = Instance.new("TextButton", Scroll)
-    b.Size = UDim2.new(0.95, 0, 0, 45)
-    b.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    b.Text = text
-    b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", b)
-    
-    local active = false
     b.MouseButton1Click:Connect(function()
-        active = not active
-        b.BackgroundColor3 = active and Color3.fromRGB(0, 120, 100) or Color3.fromRGB(40, 40, 40)
-        callback(active)
+        _G.Config[var] = not _G.Config[var]
+        b.BackgroundColor3 = _G.Config[var] and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(35, 35, 35)
+        b.TextColor3 = Color3.new(1, 1, 1)
     end)
 end
 
--- [ LÓGICA DE INTERAÇÃO (ANTI-LAG) ]
+NewButton("👥 ESP: Jogadores", "Pessoas")
+NewButton("👹 ESP: Besta", "Besta")
+NewButton("💻 ESP: Computadores", "PCs")
+NewButton("⚡ Velocidade (Speed)", "Speed")
+NewButton("⚙️ Interação Instantânea", "InstaInteracao")
+NewButton("🚫 Sem Tremor de Câmera", "NoShake")
+
+-- LOOP DE VELOCIDADE
 task.spawn(function()
-    while task.wait(0.3) do -- Delay balanceado para não causar lag no servidor
-        if _G.AutoInteract and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-            local root = lp.Character.HumanoidRootPart
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") then
-                    if (root.Position - v.Parent.Position).Magnitude < 25 then
-                        fireproximityprompt(v)
+    while task.wait() do
+        if _G.Config.Speed then
+            pcall(function()
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 24 -- Velocidade otimizada para não ser kickado
+            end)
+        else
+            pcall(function()
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+            end)
+        end
+    end
+end)
+
+-- INTERAÇÃO INSTANTÂNEA (COMPUTADORES E PORTAS)
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.Config.InstaInteracao then
+            pcall(function()
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("ProximityPrompt") then
+                        v.HoldDuration = 0 -- Remove o tempo de segurar
                     end
-                elseif v:IsA("TouchInterest") and v.Parent then
-                    firetouchinterest(root, v.Parent, 0)
-                    task.wait()
-                    firetouchinterest(root, v.Parent, 1)
+                end
+            end)
+        end
+    end
+end)
+
+-- ANTI CAMERA SHAKE (ESTABILIZADOR)
+task.spawn(function()
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if _G.Config.NoShake then
+            pcall(function()
+                local cam = workspace.CurrentCamera
+                -- Tenta neutralizar o tremor forçado pelo jogo
+                if cam:FindFirstChild("Shake") then cam.Shake:Destroy() end
+            end)
+        end
+    end)
+end)
+
+-- ESP SISTEMA (SEM LAG)
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            -- PCs
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v.Name == "ComputerTable" then
+                    local h = v:FindFirstChild("Highlight") or Instance.new("Highlight", v)
+                    h.Enabled = _G.Config.PCs
+                    h.FillColor = Color3.fromRGB(0, 255, 100)
                 end
             end
-        end
-    end
-end)
-
--- [ LÓGICA DE VOO (ESTÁVEL/ANTI-QUEDA) ]
-runService.RenderStepped:Connect(function()
-    if _G.Fly and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = lp.Character.HumanoidRootPart
-        local hum = lp.Character:FindFirstChildOfClass("Humanoid")
-        
-        if hum then
-            -- Previne animação de queda e trava gravidade
-            hrp.Velocity = Vector3.new(0, 0, 0)
-            
-            if hum.MoveDirection.Magnitude > 0 then
-                hrp.CFrame = hrp.CFrame + (cam.CFrame.LookVector * (hum.MoveDirection.Magnitude * (_G.FlySpeed/15)))
-            else
-                -- Mantém a posição exata para não escorregar no ar
-                hrp.CFrame = CFrame.new(hrp.Position) * hrp.CFrame.Rotation
+            -- Players
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= game.Players.LocalPlayer and p.Character then
+                    local isBeast = p.Character:FindFirstChild("Hammer")
+                    local h = p.Character:FindFirstChild("Highlight") or Instance.new("Highlight", p.Character)
+                    h.Enabled = isBeast and _G.Config.Besta or _G.Config.Pessoas
+                    h.FillColor = isBeast and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
+                end
             end
-        end
+        end)
     end
 end)
 
--- [ ADIÇÃO DE FUNÇÕES ]
-AddBtn("ATIVAR VOO (F13)", function(v) _G.Fly = v end)
-AddBtn("AUTO LOOT + PROXIMITY", function(v) _G.AutoInteract = v end)
-AddBtn("GHOST MODE (ANT-PAREDE)", function(v)
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name:find("Wall") or obj.Name:find("Parede")) then
-            obj.CanCollide = not v
-        end
-    end
-end)
-AddBtn("LIMPAR GRÁFICOS (FPS+)", function(v)
-    if v then
-        for _, obj in pairs(game:GetDescendants()) do
-            if obj:IsA("Texture") or obj:IsA("Decal") then
-                obj:Destroy()
-            elseif obj:IsA("BasePart") and not obj:IsA("MeshPart") then
-                obj.Material = Enum.Material.SmoothPlastic
-            end
-        end
-    end
-end)
-
-print("Premium V13: Todos os bugs foram resolvidos com sucesso!")
+-- Botão de Abrir/Fechar
+local T = Instance.new("TextButton", ScreenGui)
+T.Size = UDim2.new(0, 70, 0, 30)
+T.Position = UDim2.new(0.4, 0, 0.02, 0)
+T.Text = "ELITE"
+T.BackgroundColor3 = Color3.new(0,0,0)
+T.TextColor3 = Color3.new(1,1,1)
+T.Font = Enum.Font.GothamBold
+Instance.new("UICorner", T)
+T.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
